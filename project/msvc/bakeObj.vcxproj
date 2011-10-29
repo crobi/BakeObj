@@ -75,6 +75,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\bakeObj.h" />
+    <ClInclude Include="..\..\src\objTypes.h" />
     <ClInclude Include="..\..\src\packer.h" />
     <ClInclude Include="..\..\src\parser.h" />
   </ItemGroup>
