@@ -3,3 +3,4 @@
 /lib/devil
 /project/msvc/Debug
 /project/msvc/Release
+/project/msvc/bakeObj.opensdf

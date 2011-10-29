@@ -53,10 +53,10 @@ struct Material
 	std::string textureEmissive;
 	std::string textureTransparency;
 	std::string textureBump;
-	Vector4f    colorAmbient;
-	Vector4f    colorDiffuse;
-	Vector4f    colorSpecular;
-	Vector4f    colorEmissive;
+	Vector3f    colorAmbient;
+	Vector3f    colorDiffuse;
+	Vector3f    colorSpecular;
+	Vector3f    colorEmissive;
 	float       transparency;
 	float       shininess;
 	int         illuminationModel;

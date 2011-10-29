@@ -175,9 +175,9 @@ struct CompareFaces
 //=================================================================================================
 // Parses a color
 //=================================================================================================
-bool parseColor(std::istringstream& stream, Vector4f& color)
+bool parseColor(std::istringstream& stream, Vector3f& color)
 {
-	for(int i=0; i<4; i++)
+	for(int i=0; i<3; i++)
 	{
 		stream >> color.data[i];
 	}
@@ -226,12 +226,16 @@ void loadMaterialFile(const std::string& filename, MaterialMapType& materials)
 
 		// Read the command
 		stream >> type;
-		std::transform(type.begin(), type.end(), type.begin(), toupper); 
+		std::transform(type.begin(), type.end(), type.begin(), tolower); 
 
 		if(type == "newmtl")
 		{
 			if (!currentName.empty())
 			{
+				if (materials.find(currentName)!=materials.end())
+				{
+					std::cerr << "duplicate material definition for " << currentName << std::endl;
+				}
 				materials[currentName] = currentMaterial;
 			}
 			currentMaterial.reset();
@@ -339,21 +343,23 @@ void loadObj(const std::string& filename, Mesh& result)
 		// Read the command
 		std::istringstream stream(line);
 		std::string type;
-		std::transform(type.begin(), type.end(), type.begin(), toupper); 
 
 		stream >> type;
+		std::transform(type.begin(), type.end(), type.begin(), tolower); 
+
 		if(type == "mtllib")
 		{
 			std::string materialFileName;
+			stream >> materialFileName;
 			// FIXME: handle relative and absolute file names
 			loadMaterialFile(materialFileName, result.materials);
 		}
-		if(type == "g")
+		else if(type == "g")
 		{
 			result.components.push_back(MeshComponent());
 			stream >> result.components.back().componentName;
 		}
-		if(type == "usemtl")
+		else if(type == "usemtl")
 		{
 			if (!result.components.back().materialName.empty())
 			{
@@ -361,15 +367,15 @@ void loadObj(const std::string& filename, Mesh& result)
 			}
 			stream >> result.components.back().materialName;
 		}
-		if(type == "s")
+		else if(type == "s")
 		{
 			// FIXME: Smooth shading
 		}
-		if(type == "o")
+		else if(type == "o")
 		{
 			// FIXME: object names (no real use)
 		}
-		if(type == "v")
+		else if(type == "v")
 		{
 			// Vertex position data
 			Vector3f v;
@@ -535,7 +541,7 @@ void writeVector(std::ofstream& outfile, const std::string& type, const T& v)
 	outfile << type << " ";
 	for(int i=0; i<T::Dimension-1; i++)
 	{
-		outfile << v.data[i];
+		outfile << v.data[i] << " ";
 	}
 	outfile << v.data[T::Dimension];
 	outfile << std::endl;
@@ -644,18 +650,20 @@ void writeObj(const std::string& filename, const std::string matFilename, const 
 	{
 		const MeshComponent& comp = *ic;
 		// Component name
-		outfile << "g " << comp.componentName;
+		outfile << "g " << comp.componentName << std::endl;
 		// Component material
 		if(!comp.materialName.empty())
 		{
-			outfile << "usemtl " << comp.materialName;
+			outfile << "usemtl " << comp.materialName << std::endl;
 		}
 		// Faces
 		for(size_t i=0;i<comp.faces.size();++i)
 		{
 			outfile << "f ";
 			writeVertexIndex(outfile, comp.faces[i].data[0], hasNormals, hasTexCoord);
+			outfile << " ";
 			writeVertexIndex(outfile, comp.faces[i].data[1], hasNormals, hasTexCoord);
+			outfile << " ";
 			writeVertexIndex(outfile, comp.faces[i].data[2], hasNormals, hasTexCoord);
 			outfile << std::endl;
 		}
@@ -674,6 +682,7 @@ void writeObj(const std::string& filename, const std::string matFilename, const 
 		const std::string& name = im->first;
 		const Material& mat = im->second;
 
+		matfile << "#material" << std::endl;
 		matfile << "newmtl " << name << std::endl;
 		matfile << "illum " << mat.illuminationModel << std::endl;
 		writeVector(matfile, "Ka", mat.colorAmbient);
@@ -688,6 +697,7 @@ void writeObj(const std::string& filename, const std::string matFilename, const 
 		writeMaterialTexture(matfile, "map_Ke",   mat.textureEmissive);
 		writeMaterialTexture(matfile, "map_bump", mat.textureBump);
 		writeMaterialTexture(matfile, "map_d",    mat.textureTransparency);
+		matfile << std::endl;
 	}
 	matfile.close();
 }
