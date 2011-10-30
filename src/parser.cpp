@@ -549,6 +549,7 @@ void writeVector(std::ofstream& outfile, const std::string& type, const T& v)
 
 void writeVertexIndex(std::ofstream& outfile, int index, bool hasNormals, bool hasTexCoord)
 {
+	index++;
 	if(hasNormals && hasTexCoord)
 	{
 		outfile << index << "/" << index << "/" << index;
@@ -610,7 +611,7 @@ void writeObj(const std::string& filename, const std::string matFilename, const 
 	outfile << "mtllib " << matFilename << std::endl;
 
 	// Write vertices
-	outfile << "#vertices" << std::endl;
+	outfile << "#vertices (" << mesh.vertices.size() << ")" << std::endl;
 	for(size_t i=0;i<mesh.vertices.size();i++)
 	{
 		writeVector(outfile, "v", mesh.vertices[i]);
@@ -619,7 +620,7 @@ void writeObj(const std::string& filename, const std::string matFilename, const 
 	// Write normals
 	if(hasNormals)
 	{
-		outfile << "#normals" << std::endl;
+		outfile << "#normals (" << mesh.normals.size() << ")" << std::endl;
 		for(size_t i=0;i<mesh.normals.size();i++)
 		{
 			writeVector(outfile, "vn", mesh.normals[i]);
@@ -633,7 +634,7 @@ void writeObj(const std::string& filename, const std::string matFilename, const 
 	// Write texture coordinates
 	if(hasTexCoord)
 	{
-		outfile << "#texture coordinates" << std::endl;
+		outfile << "#texture coordinates (" << mesh.texcoord.size() << ")" << std::endl;
 		for(size_t i=0;i<mesh.texcoord.size();i++)
 		{
 			writeVector(outfile, "vt", mesh.texcoord[i]);
@@ -645,7 +646,7 @@ void writeObj(const std::string& filename, const std::string matFilename, const 
 	}
 
 	// Write components
-	outfile << "#components" << std::endl;
+	outfile << "#components (" << mesh.components.size() << ")" << std::endl;
 	for(ComponentListType::const_iterator ic=mesh.components.begin(); ic!=mesh.components.end(); ++ic)
 	{
 		const MeshComponent& comp = *ic;
