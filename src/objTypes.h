@@ -82,6 +82,7 @@ struct MeshComponent
 	std::vector<Vector3i> faces;
 	void reset()
 	{
+		componentName = "default";
 		materialName = "";
 		faces.clear();
 	}

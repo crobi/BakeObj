@@ -4,82 +4,140 @@
 #include <list>
 #include <map>
 #include <algorithm>
+#include <fstream>
 
 #include "IL/il.h"
-#include "IL/ilu.h"
-#include "IL/ilut.h"
 
+#include <boost/shared_ptr.hpp>
+#include <boost/weak_ptr.hpp>
+
+
+class TextureTile;
+class TextureTileQuad;
+class TextureTileLeaf;
+class TextureTileTree;
+typedef boost::shared_ptr<TextureTile> TextureTilePtr;
+typedef boost::weak_ptr<TextureTile> TextureTileWeakPtr;
+typedef boost::shared_ptr<TextureTileQuad> TextureTileQuadPtr;
+typedef boost::shared_ptr<TextureTileLeaf> TextureTileLeafPtr;
+
+typedef std::list<TextureTilePtr> TextureTileListType;
+typedef std::vector<TextureTilePtr> TextureTileArrayType;
+
+// ------------------------------------------------------------------------------
+//
+// ------------------------------------------------------------------------------
+class TextureTileTree
+{
+private:
+	TextureTileListType mHeads;
+public:
+	size_t size() const { return mHeads.size(); }
+	typedef TextureTileListType::iterator iterator;
+	typedef TextureTileListType::const_iterator const_iterator;
+	TextureTileListType::iterator begin() { return mHeads.begin(); }
+	TextureTileListType::iterator end() { return mHeads.end(); }
+	const TextureTilePtr& front() const { return mHeads.front(); }
+public:
+	TextureTilePtr getSmallestTile() const { return mHeads.front(); }
+public:
+	void getTileOffset(TextureTilePtr tile, int& resultX, int& resultY) const;
+	TextureTileQuadPtr addQuad(const TextureTileArrayType& children);
+	TextureTileLeafPtr addLeaf(const std::string& filename);
+};
+
+// ------------------------------------------------------------------------------
+//
+// ------------------------------------------------------------------------------
 class TextureTile
 {
+protected:
+	TextureTileWeakPtr mParent;
 public:
-	const TextureTile* parent;
-	int                sizeX;
-	int                sizeY;
+	inline int getMaxSize() const { return std::max<int>(getSizeX(),getSizeY()); } 
+	inline int area() const { return getSizeX()*getSizeY(); }
+	virtual int getSizeX() const = 0;
+	virtual int getSizeY() const = 0;
 public:
-	inline int maxSize() const { return std::max<int>(sizeX,sizeY); } 
-	inline int area() const { return sizeX*sizeY; }
-public:
-	virtual bool getTileOffset(const TextureTile* tile, int offsetX, int offsetY, int& resultX, int& resultY) const = 0;
+	virtual bool getTileOffset(TextureTilePtr tile, int offsetX, int offsetY, int& resultX, int& resultY) const = 0;
 
+protected:
+	friend TextureTilePtr;
+	friend TextureTileTree;
 	TextureTile()
 	{
-		parent = NULL;
-		sizeX = 0;
-		sizeY = 0;
 	}
+public:
 	virtual ~TextureTile(){};
 };
-typedef std::list<TextureTile*> TextureTileListType;
-typedef std::vector<TextureTile*> TextureTileArrayType;
+
 
 bool operator<(const TextureTile& a, const TextureTile& b)
 {
-	return a.maxSize() < b.maxSize();
+	return a.getMaxSize() < b.getMaxSize();
 }
 
-bool compareTiles(const TextureTile* a, const TextureTile* b)
+bool compareTiles(TextureTilePtr a, TextureTilePtr b)
 {
 	return *a < *b;
 }
 
+// ------------------------------------------------------------------------------
+//
+// ------------------------------------------------------------------------------
 class TextureTileQuad: public TextureTile
 {
 public:	
-	TextureTileQuad* children[4];
-	int              offsetsX[4];
-	int              offsetsY[4];
+	TextureTilePtr mChildren[4];
+	static int offsetsX[4];
+	static int offsetsY[4];
+	int mSize;
+	virtual int getSizeX() const { return mSize; }
+	virtual int getSizeY() const { return mSize; }
 public:
-	void addChildren(const TextureTileArrayType& children, TextureTileListType& headTiles);
-	virtual bool getTileOffset(const TextureTile* tile, int offsetX, int offsetY, int& resultX, int& resultY) const
+	virtual bool getTileOffset(TextureTilePtr tile, int offsetX, int offsetY, int& resultX, int& resultY) const
 	{
+		int halfSize = mSize / 2;
 		bool result = false;
 		for(int i=0; i<4; i++)
 		{
-			result = result || (children[i]!=NULL && 
-				children[i]->getTileOffset(tile, offsetX+offsetsX[i], offsetY+offsetsY[i], resultX, resultY));
+			result = result || (mChildren[i]!=NULL && 
+				mChildren[i]->getTileOffset(tile, offsetX+offsetsX[i]*halfSize, offsetY+offsetsY[i]*halfSize, resultX, resultY));
 		}
+		return result;
 	}
+public:
+	friend class TextureTileTree;
 	TextureTileQuad()
 	{
-		for(int i=0; i<4;i++)
-		{
-			children[i] = NULL;
-		}
+		mSize = 0;
 	}
 };
 
+int TextureTileQuad::offsetsX[4] = {0,1,0,1};
+int TextureTileQuad::offsetsY[4] = {0,0,1,1};
+
+// ------------------------------------------------------------------------------
+//
+// ------------------------------------------------------------------------------
 class TextureTileLeaf: public TextureTile
 {
 public:
-	int exactWidth;
-	int exactHeight;
-	ILuint image;
-
+	int mExactWidth;
+	int mExactHeight;
+	int mSizeX;
+	int mSizeY;
+	ILuint mImage;
 public:
-	void loadFromFile(const std::string& filename);
-	virtual bool getTileOffset(const TextureTile* tile, int offsetX, int offsetY, int& resultX, int& resultY) const
+	virtual int getSizeX() const { return mSizeX; }
+	virtual int getSizeY() const { return mSizeY; }
+	int getExactWidth() const { return mExactWidth; }
+	int getExactHeight() const { return mExactHeight; }
+	ILuint getImage() const { return mImage; }
+public:
+	virtual bool getTileOffset(TextureTilePtr tile, int offsetX, int offsetY, int& resultX, int& resultY) const
 	{
-		if (tile==this)
+		if (tile.get()==this)
 		{
 			resultX = offsetX;
 			resultY = offsetY;
@@ -87,16 +145,117 @@ public:
 		}
 		else return false;
 	}
+private:
+	void loadFromFile(const std::string& filename);
+	friend class TextureTileTree;
 	TextureTileLeaf()
 	{
-		exactWidth = 0;
-		exactHeight = 0;
-		image = 0;
+		mExactWidth = 0;
+		mExactHeight = 0;
+		mImage = 0;
+		ilGenImages(1, &mImage);
+	}
+public:
+	~TextureTileLeaf()
+	{
+		ilDeleteImages(1, &mImage);
 	}
 };
 
-void packTextures(const Mesh& inputMesh, Mesh& outputMesh)
+TextureTileQuadPtr TextureTileTree::addQuad(const TextureTileArrayType& children)
 {
+	TextureTileArrayType trimmedChildren(children);
+	trimmedChildren.resize(4);
+
+	// Insert empty quad
+	TextureTileQuadPtr quad(new TextureTileQuad);
+	mHeads.push_back(quad);
+
+	// Move tiles from the list of heads to the local list of children
+	int size = 0;
+	for(int i=0; i<4; ++i)
+	{
+		quad->mChildren[i] = trimmedChildren[i];
+		if (trimmedChildren[i] != NULL)
+		{
+			quad->mChildren[i]->mParent = TextureTileWeakPtr(quad);
+			mHeads.remove(trimmedChildren[i]);
+			size = std::max<int>(size, trimmedChildren[i]->getMaxSize());
+		}
+	}
+
+	// Set the quad size
+	quad->mSize = 2*size;
+
+	mHeads.sort(compareTiles);
+	return quad;
+}
+
+TextureTileLeafPtr TextureTileTree::addLeaf(const std::string& filename)
+{
+	TextureTileLeafPtr leaf(new TextureTileLeaf);
+	mHeads.push_back(leaf);
+	leaf->loadFromFile(filename);
+
+	mHeads.sort(compareTiles);
+	return leaf;
+}
+
+void TextureTileTree::getTileOffset(TextureTilePtr tile, int& resultX, int& resultY) const
+{
+	if(mHeads.size()!=1)
+	{
+		throw std::runtime_error("tree has more than one head");
+	}
+	if(!mHeads.front()->getTileOffset(tile, 0, 0, resultX, resultY))
+	{
+		throw std::runtime_error("the tile is not present in the tree");
+	}
+}
+
+int getNextPoT(int i)
+{
+	int result = 1;
+	while(result<i)
+	{
+		result *= 2;
+	}
+	return result;
+}
+
+void TextureTileLeaf::loadFromFile(const std::string& filename)
+{
+	ilBindImage(mImage);
+	std::wstring wFilename(filename.length()+1, 0);
+	std::copy(filename.begin(), filename.end(), wFilename.begin());
+
+	if(ilLoadImage(wFilename.c_str()) != IL_TRUE)
+	{
+		throw std::runtime_error("could not load texture file " + filename);
+	}
+
+	if(ilConvertImage(IL_RGBA, IL_UNSIGNED_BYTE) != IL_TRUE)
+	{
+		throw std::runtime_error("could not convert texture to 32bit RGBA " + filename);
+	}
+
+	mExactWidth = ilGetInteger(IL_IMAGE_WIDTH);
+	mExactHeight = ilGetInteger(IL_IMAGE_HEIGHT);
+	mSizeX = getNextPoT(mExactWidth);
+	mSizeY = getNextPoT(mExactHeight);
+}
+
+
+void transformTexcoord(Vector2f& out, const Vector2f& in, float ax, float bx, float ay, float by)
+{
+	out.data[0] = ax*in.data[0] + bx;
+	out.data[1] = ay*in.data[1] + by;
+}
+
+void packTextures(const Mesh& inputMesh, Mesh& outputMesh, const std::string& textureFilename)
+{
+	ilInit();
+
 	// Collect all actually used materials
 	std::set<std::string> usedMaterialNames;
 	for(ComponentListType::const_iterator ic=inputMesh.components.begin();ic!=inputMesh.components.end();++ic)
@@ -104,52 +263,119 @@ void packTextures(const Mesh& inputMesh, Mesh& outputMesh)
 		usedMaterialNames.insert(ic->materialName);
 	}
 
-	// Create a list of all tiles
-	TextureTileListType headTiles;
-	TextureTileListType allTiles;
+	// Create a tree of all tiles
+	TextureTileTree tileTree;
 
 	// Create one leaf for each input material texture
-	std::map<std::string, TextureTileLeaf*> materialTiles;
+	typedef std::map<std::string, TextureTileLeafPtr> MaterialTileMapType;
+	MaterialTileMapType materialTiles;
 	for(MaterialMapType::const_iterator im=inputMesh.materials.begin();im!=inputMesh.materials.end();++im)
 	{
 		const std::string name = im->first;
 		const Material& mat = im->second;
 		if (!mat.textureDiffuse.empty() && usedMaterialNames.find(name)!=usedMaterialNames.end())
 		{
-			TextureTileLeaf* leaf = new TextureTileLeaf();
-			headTiles.push_back(leaf);
-			allTiles.push_back(leaf);
-			leaf->loadFromFile(mat.textureDiffuse);
+			TextureTileLeafPtr leaf = tileTree.addLeaf(mat.textureDiffuse);
 			materialTiles[name] = leaf;
 		}
 	}
 
 	// Combine tiles until only one image remains
-	std::vector<TextureTile*> candidateTiles;
+	TextureTileArrayType candidateTiles;
 	candidateTiles.reserve(8);
-	while(headTiles.size()>0)
+	while(tileTree.size()>1)
 	{
-		headTiles.sort(compareTiles);
-
 		// Find candidates to combine
-		TextureTile* smallestTile = headTiles.front();
+		TextureTilePtr smallestTile = tileTree.getSmallestTile();
+
 		candidateTiles.clear();
-		for(TextureTileListType::iterator it=headTiles.begin(); it!=headTiles.end(); ++it)
+		for(TextureTileTree::iterator it=tileTree.begin(); it!=tileTree.end(); ++it)
 		{
-			if (smallestTile->maxSize() == it->maxSize())
+			TextureTilePtr candidate = *it;
+			if (smallestTile->getMaxSize() == candidate->getMaxSize())
 			{
-				candidateTiles.push_back(*it);
+				candidateTiles.push_back(candidate);
 			}
 		}
 
 		// Create a new tile
-		TextureTileQuad* quad = new TextureTileQuad();
-		headTiles.push_back(quad);
-		allTiles.push_back(quad);
-		quad->addChildren(candidateTiles, headTiles);
+		tileTree.addQuad(candidateTiles);
 	}
 
+	int totalSizeX = tileTree.front()->getSizeX();
+	int totalSizeY = tileTree.front()->getSizeY();
+
+	// Copy data
+	outputMesh.vertices = inputMesh.vertices;
+	outputMesh.normals = inputMesh.normals;
+	outputMesh.texcoord = inputMesh.texcoord;
+	outputMesh.components.push_back(MeshComponent());
+	MeshComponent& outputComponent = outputMesh.components.front();
+	outputComponent.componentName = "default";
+	outputComponent.materialName = "default";
+
 	// Transform texture coordinates
+	for(ComponentListType::const_iterator ic=inputMesh.components.begin();ic!=inputMesh.components.end();++ic)
+	{
+		std::string material = ic->materialName;
+		size_t startFace = outputComponent.faces.size();
+		outputComponent.faces.reserve(outputComponent.faces.size() + ic->faces.size());
+		outputComponent.faces.insert(outputComponent.faces.end(), ic->faces.begin(), ic->faces.end());
+
+		MaterialTileMapType::iterator it = materialTiles.find(material);
+		if (it!=materialTiles.end())
+		{
+			const TextureTileLeafPtr& leaf = it->second;
+			int tileSizeX = leaf->getSizeX();
+			int tileSizeY = leaf->getSizeY();
+			int offsetX, offsetY;
+			tileTree.getTileOffset(leaf, offsetX, offsetY);
+			float ax = offsetX / float(totalSizeX);
+			float ay = offsetY / float(totalSizeY);
+			float bx = tileSizeX / float(totalSizeX);
+			float by = tileSizeY / float(totalSizeY);
+			for(size_t f=startFace;f<outputComponent.faces.size();++f)
+			{
+				Vector3i indices = outputComponent.faces[f];
+				for(int i=0; i<3; ++i)
+				{
+					transformTexcoord(outputMesh.texcoord[indices.data[0]], inputMesh.texcoord[indices.data[0]], ax,bx,ay,by);
+				}
+			}
+		}
+	}
+
+	// Create the texture atlas
+	ILuint atlasImage;
+	ilGenImages(1, &atlasImage);
+	ilBindImage(atlasImage);
+	if(!ilTexImage(ILuint(totalSizeX), ILuint(totalSizeY), 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL))
+	{
+		throw std::runtime_error("could not create the output image");
+	}
 
 	// Stitch the texture atlas
+	for(MaterialTileMapType::const_iterator im=materialTiles.begin();im!=materialTiles.end();++im)
+	{
+		const std::string name = im->first;
+		const TextureTileLeafPtr& leaf = im->second;
+		int tileSizeX = leaf->getSizeX();
+		int tileSizeY = leaf->getSizeY();
+		int offsetX, offsetY;
+		tileTree.getTileOffset(leaf, offsetX, offsetY);
+
+		if(!ilBlit(leaf->getImage(), offsetX, offsetY, 0, 0, 0, 0, leaf->getExactWidth(), leaf->getExactHeight(), 1))
+		{
+			throw std::runtime_error("could not blit into the output image");
+		}
+	}
+	std::wstring wFilename;
+	wFilename.resize(textureFilename.size()+1,0);
+	std::copy(textureFilename.begin(), textureFilename.end(), wFilename.begin());
+
+	ilSaveImage(wFilename.c_str());
+	ilDeleteImages(1, &atlasImage);
+
+	Material& mat = outputMesh.materials["default"];
+	mat.textureDiffuse = textureFilename;
 }

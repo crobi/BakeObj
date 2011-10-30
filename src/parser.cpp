@@ -543,7 +543,7 @@ void writeVector(std::ofstream& outfile, const std::string& type, const T& v)
 	{
 		outfile << v.data[i] << " ";
 	}
-	outfile << v.data[T::Dimension];
+	outfile << v.data[T::Dimension-1];
 	outfile << std::endl;
 }
 

@@ -4,3 +4,5 @@
 /project/msvc/Debug
 /project/msvc/Release
 /project/msvc/bakeObj.opensdf
+/project/msvc/x64
+/project/msvc/ipch
