@@ -330,16 +330,16 @@ void packTextures(const Mesh& inputMesh, Mesh& outputMesh, const std::string& te
 			int tileSizeY = leaf->getSizeY();
 			int offsetX, offsetY;
 			tileTree.getTileOffset(leaf, offsetX, offsetY);
-			float ax = offsetX / float(totalSizeX);
-			float ay = offsetY / float(totalSizeY);
-			float bx = tileSizeX / float(totalSizeX);
-			float by = tileSizeY / float(totalSizeY);
-			for(size_t f=startFace;f<outputComponent.faces.size();++f)
+			float bx = offsetX / float(totalSizeX);
+			float by = offsetY / float(totalSizeY);
+			float ax = tileSizeX / float(totalSizeX);
+			float ay = tileSizeY / float(totalSizeY);
+			for(size_t f=0;f<ic->faces.size();++f)
 			{
-				Vector3i indices = outputComponent.faces[f];
+				Vector3i indices = ic->faces[f];
 				for(int i=0; i<3; ++i)
 				{
-					transformTexcoord(outputMesh.texcoord[indices.data[0]], inputMesh.texcoord[indices.data[0]], ax,bx,ay,by);
+					transformTexcoord(outputMesh.texcoord[indices.data[i]], inputMesh.texcoord[indices.data[i]], ax,bx,ay,by);
 				}
 			}
 		}
@@ -364,7 +364,7 @@ void packTextures(const Mesh& inputMesh, Mesh& outputMesh, const std::string& te
 		int offsetX, offsetY;
 		tileTree.getTileOffset(leaf, offsetX, offsetY);
 
-		if(!ilBlit(leaf->getImage(), offsetX, offsetY, 0, 0, 0, 0, leaf->getExactWidth(), leaf->getExactHeight(), 1))
+		if(!ilBlit(leaf->getImage(), offsetX, totalSizeY-(offsetY+tileSizeY), 0, 0, 0, 0, leaf->getExactWidth(), leaf->getExactHeight(), 1))
 		{
 			throw std::runtime_error("could not blit into the output image");
 		}

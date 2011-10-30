@@ -4,10 +4,7 @@
 #include <sstream>
 #include <algorithm>
 
-const int MAX_NO_VERTICES = 3;
-const int INDICES_PER_VERTEX = 3;
 const bool normalizeNormals = true;
-const std::string json_tab = "  ";
 
 //=================================================================================================
 // Check if a character is a decimal
@@ -298,6 +295,15 @@ void loadMaterialFile(const std::string& filename, MaterialMapType& materials)
 			std::cerr << "unknown material command: " << type << std::endl;
 		}
 	}
+
+	if (!currentName.empty())
+	{
+		if (materials.find(currentName)!=materials.end())
+		{
+			std::cerr << "duplicate material definition for " << currentName << std::endl;
+		}
+		materials[currentName] = currentMaterial;
+	}
 }
 
 //=================================================================================================
@@ -361,6 +367,10 @@ void loadObj(const std::string& filename, Mesh& result)
 		}
 		else if(type == "usemtl")
 		{
+			if(result.components.size()==0)
+			{
+				throw std::runtime_error("material without a group encountered");
+			}
 			if (!result.components.back().materialName.empty())
 			{
 				std::cerr << "component " << result.components.back().componentName << " already has a material, replacing the old definition";
@@ -417,11 +427,11 @@ void loadObj(const std::string& filename, Mesh& result)
 			const char* ptr = line.c_str() + pos;
 
 			// Every vertex may supply up to 3 indexes (vertex index, normal index, texcoord index)
-			Vector3i loadedIndices[MAX_NO_VERTICES];
-			int mappedIndices[MAX_NO_VERTICES];
+			Vector3i loadedIndices[3];
+			int mappedIndices[3];
 			int vertexCount;
 
-			if(parseFace(ptr, loadedIndices, vertexCount, MAX_NO_VERTICES))
+			if(parseFace(ptr, loadedIndices, vertexCount, 3))
 			{
 				// If the face is legal, for every vertex, assign the normal and the texcoord
 				for (int i = 0; i < vertexCount; ++i)
@@ -463,7 +473,7 @@ void loadObj(const std::string& filename, Mesh& result)
 						if (hasTextureCoordinates)
 						{
 							int texCoordIndex = loadedIndices[i].data[2] - 1;
-
+							
 							if (texCoordIndex < (int) texcoord.size())
 							{
 								result.texcoord.push_back(texcoord[texCoordIndex]);	
@@ -657,6 +667,7 @@ void writeObj(const std::string& filename, const std::string matFilename, const 
 		{
 			outfile << "usemtl " << comp.materialName << std::endl;
 		}
+		outfile << "s " << 1 << std::endl;
 		// Faces
 		for(size_t i=0;i<comp.faces.size();++i)
 		{
