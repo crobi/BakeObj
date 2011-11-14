@@ -6,7 +6,7 @@
 
 int main(int argc, char** argv)
 {
-	if (argc != 2)
+	if (argc < 2)
 	{
 		std::cout << "usage: bakeObj input-file" << std::endl;
 		std::cout << "parameters:" << std::endl;
@@ -14,12 +14,19 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
+	std::string filename_in(argv[1]);
+	std::string filename_out_base = filename_in + ".baked";
+	if (argc >=3)
+	{
+		filename_out_base = std::string(argv[2]);
+	}
+
 	try
 	{
-		std::string filename_in(argv[1]);
-		std::string filename_out(filename_in + ".baked.obj");
-		std::string filename_mat(filename_in + ".baked.mtl");
-		std::string filename_tex(filename_in + ".baked.png");
+		
+		std::string filename_out(filename_out_base + ".obj");
+		std::string filename_mat(filename_out_base + ".mtl");
+		std::string filename_tex(filename_out_base + ".png");
 		Mesh mesh_in;
 		Mesh mesh_out;
 
