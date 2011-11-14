@@ -354,6 +354,8 @@ void packTextures(const Mesh& inputMesh, Mesh& outputMesh, const std::string& te
 		throw std::runtime_error("could not create the output image");
 	}
 
+	ilDisable(IL_BLIT_BLEND);
+
 	// Stitch the texture atlas
 	for(MaterialTileMapType::const_iterator im=materialTiles.begin();im!=materialTiles.end();++im)
 	{
@@ -369,6 +371,7 @@ void packTextures(const Mesh& inputMesh, Mesh& outputMesh, const std::string& te
 			throw std::runtime_error("could not blit into the output image");
 		}
 	}
+
 	std::wstring wFilename;
 	wFilename.resize(textureFilename.size()+1,0);
 	std::copy(textureFilename.begin(), textureFilename.end(), wFilename.begin());
