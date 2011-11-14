@@ -8,9 +8,10 @@ int main(int argc, char** argv)
 {
 	if (argc < 2)
 	{
-		std::cout << "usage: bakeObj input-file" << std::endl;
+		std::cout << "usage: bakeObj input-file [output-name]" << std::endl;
 		std::cout << "parameters:" << std::endl;
-		std::cout << "  input-file: filename of the input obj file" << std::endl;
+		std::cout << "  input-file: filename of the input obj file (with extension)" << std::endl;
+		std::cout << "  output-name: base filename of the output files (without extension)" << std::endl;
 		return 0;
 	}
 
@@ -23,7 +24,6 @@ int main(int argc, char** argv)
 
 	try
 	{
-		
 		std::string filename_out(filename_out_base + ".obj");
 		std::string filename_mat(filename_out_base + ".mtl");
 		std::string filename_tex(filename_out_base + ".png");
